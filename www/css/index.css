@@ -37,6 +37,8 @@ body {
 .tab-content {
     display: none;
     padding: 20px;
+    max-height: 300px;
+    overflow-y: auto;
 }
 
 .tab-content.active {
@@ -99,3 +101,4 @@ body {
 #call-button:hover {
     background-color: #218838;
 }
+

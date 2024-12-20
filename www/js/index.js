@@ -11,15 +11,24 @@ function onDeviceReady() {
 
 function requestPermissions() {
     const permissions = cordova.plugins.permissions;
-    permissions.requestPermissions(
-        [
-            permissions.READ_CALL_LOG,
-            permissions.READ_PHONE_STATE,
-            permissions.CALL_PHONE
-        ],
-        () => console.log('Permissions granted'),
-        (err) => console.error('Permissions denied:', err)
-    );
+    const requiredPermissions = [
+        permissions.READ_CALL_LOG,
+        permissions.READ_PHONE_STATE,
+        permissions.CALL_PHONE,
+        permissions.PROCESS_OUTGOING_CALLS
+    ];
+
+    permissions.requestPermissions(requiredPermissions, permissionSuccess, permissionError);
+}
+
+function permissionSuccess() {
+    console.log('Permissions granted');
+    fetchCallLogs();
+}
+
+function permissionError() {
+    console.error('Permissions not granted');
+    alert('This app requires permissions to access call logs and make calls.');
 }
 
 function setupTabs() {
@@ -50,63 +59,87 @@ function setupDialer() {
     callButton.addEventListener('click', () => {
         const number = phoneNumberInput.value.trim();
         if (number) {
-            window.plugins.CallNumber.callNumber(
-                () => console.log('Calling:', number),
-                (err) => console.error('Call failed:', err),
-                number,
-                true
-            );
+            makePhoneCall(number);
         } else {
             alert('Please enter a valid phone number.');
         }
     });
 }
 
+function makePhoneCall(number) {
+    window.plugins.CallNumber.callNumber(callSuccess, callError, number, true);
+}
+
+function callSuccess(result) {
+    console.log('Call successful: ' + result);
+}
+
+function callError(error) {
+    console.error('Call failed: ' + error);
+    alert('Failed to make the call. Please try again.');
+}
+
 function setupPhoneCallTrap() {
-    PhoneCallTrap.onCall((state) => {
-        console.log('Phone call state:', state);
-        const callInfo = {
-            number: state.phoneNumber || 'Unknown',
-            type: state.state,
-            date: new Date().toLocaleString()
-        };
-        updateCallList(callInfo);
+    window.PhoneCallTrap.onCall((callState) => {
+        console.log('Phone call state:', callState);
+        let callType;
+        switch (callState.state) {
+            case 'RINGING':
+                callType = 'incoming';
+                break;
+            case 'OFFHOOK':
+                callType = 'outgoing';
+                break;
+            case 'IDLE':
+                // Check if it was a missed call
+                if (callState.prevState === 'RINGING') {
+                    callType = 'missed';
+                }
+                break;
+        }
+        if (callType) {
+            updateCallList(callType, callState.phoneNumber);
+        }
     });
 }
 
 function fetchCallLogs() {
-    const callLog = window.plugins.calllog;
-    if (callLog) {
-        callLog.list({}, (logs) => {
-            displayCalls('incoming', logs.filter(log => log.type === 'INCOMING'));
-            displayCalls('outgoing', logs.filter(log => log.type === 'OUTGOING'));
-            displayCalls('missed', logs.filter(log => log.type === 'MISSED'));
-        }, (err) => console.error('Failed to fetch call logs:', err));
-    } else {
-        console.error('Calllog plugin is not available.');
-    }
+    window.plugins.calllog.list(callLogSuccess, callLogError);
 }
 
-function displayCalls(tabId, calls) {
-    const tabContent = document.getElementById(tabId);
-    tabContent.innerHTML = calls.map(call => `
-        <div class="call-item">
-            <span class="number">${call.number}</span>
-            <span class="date">${new Date(call.date).toLocaleString()}</span>
-        </div>
-    `).join('');
+function callLogSuccess(calls) {
+    calls.forEach(call => {
+        let callType;
+        switch (call.type) {
+            case 1: // Incoming
+                callType = 'incoming';
+                break;
+            case 2: // Outgoing
+                callType = 'outgoing';
+                break;
+            case 3: // Missed
+                callType = 'missed';
+                break;
+        }
+        if (callType) {
+            updateCallList(callType, call.number, new Date(call.date));
+        }
+    });
 }
 
-function updateCallList(callInfo) {
-    const { type, number, date } = callInfo;
-    let tabId = type === 'RINGING' ? 'incoming' : type === 'OFFHOOK' ? 'outgoing' : 'missed';
-
-    if (tabId) {
-        const tabContent = document.getElementById(tabId);
-        const callItem = `<div class="call-item">
-            <span class="number">${number}</span>
-            <span class="date">${date}</span>
-        </div>`;
-        tabContent.innerHTML += callItem;
-    }
+function callLogError(error) {
+    console.error('Error fetching call logs:', error);
+    alert('Failed to fetch call logs. Please check app permissions.');
 }
+
+function updateCallList(type, number, date = new Date()) {
+    const tabContent = document.getElementById(type);
+    const callItem = document.createElement('div');
+    callItem.className = 'call-item';
+    callItem.innerHTML = `
+        <span class="number">${number || 'Unknown'}</span>
+        <span class="date">${date.toLocaleString()}</span>
+    `;
+    tabContent.insertBefore(callItem, tabContent.firstChild);
+}
+
