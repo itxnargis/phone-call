@@ -1,37 +1,29 @@
-// Call history storage structure
-const callHistory = {
+document.addEventListener('deviceready', onDeviceReady, false);
+
+let callHistory = {
     incoming: [],
     outgoing: [],
     missed: []
 };
 
-document.addEventListener('deviceready', onDeviceReady, false);
-
 function onDeviceReady() {
     console.log('Cordova is ready!');
-    loadCallHistory();
     setupTabs();
     setupDialer();
-    displayCallHistory();
+    setupPhoneCallTrap();
+    requestPermissions();
 }
 
 function setupTabs() {
     const tabs = document.querySelectorAll('.tab-button');
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
-            // Remove active class from all tabs
             tabs.forEach(t => t.classList.remove('active'));
-            // Add active class to clicked tab
             tab.classList.add('active');
-
-            // Hide all tab content
             document.querySelectorAll('.tab-content').forEach(content => {
                 content.classList.remove('active');
             });
-
-            // Show selected tab content
-            const tabId = tab.dataset.tab;
-            document.getElementById(tabId).classList.add('active');
+            document.getElementById(tab.dataset.tab).classList.add('active');
         });
     });
 }
@@ -40,7 +32,6 @@ function setupDialer() {
     const phoneNumberInput = document.getElementById('phone-number');
     const keypadButtons = document.querySelectorAll('.keypad-button');
     const callButton = document.getElementById('call-button');
-    const statusMessage = document.getElementById('status-message');
 
     keypadButtons.forEach(button => {
         button.addEventListener('click', () => {
@@ -51,104 +42,89 @@ function setupDialer() {
     callButton.addEventListener('click', () => {
         const number = phoneNumberInput.value.trim();
         if (number) {
-            makeCall(number);
+            makeCustomCall(number);
         } else {
-            showStatus('Please enter a valid phone number', 'error');
+            alert('Please enter a valid phone number.');
         }
     });
 }
 
-function makeCall(number) {
-    try {
-        // Add to outgoing calls history
-        addCallToHistory('outgoing', number);
+function makeCustomCall(number) {
+    cordova.plugins.phonedialer.call(
+        number,
+        function(success) {
+            console.log('Dialing succeeded');
+            addCallToHistory('outgoing', number);
+        },
+        function(err) {
+            console.error('Dialing failed', err);
+            alert('Failed to make call. Please try again.');
+        },
+        true // Use custom dialer UI
+    );
+}
 
-        // Use tel: protocol for making calls
-        const telUrl = `tel:${number}`;
-        window.location.href = telUrl;
-
-        showStatus(`Calling ${number}...`);
-
-        // Clear input after call initiation
-        document.getElementById('phone-number').value = '';
-
-    } catch (error) {
-        console.error('Call failed:', error);
-        showStatus('Failed to make call. Please try again.', 'error');
-    }
+function setupPhoneCallTrap() {
+    window.PhoneCallTrap.onCall((callState) => {
+        console.log('Phone call state:', callState);
+        switch(callState) {
+            case "RINGING":
+                addCallToHistory('incoming', "Unknown"); // Number would be available in a full implementation
+                break;
+            case "OFFHOOK":
+                // Call is active
+                break;
+            case "IDLE":
+                // Call ended
+                break;
+        }
+        updateCallLists();
+    });
 }
 
 function addCallToHistory(type, number) {
     const call = {
         number: number,
-        timestamp: new Date().toISOString(),
-        duration: '00:00' // Placeholder as we can't track actual duration
+        timestamp: new Date().toISOString()
     };
-
-    callHistory[type].unshift(call); // Add to beginning of array
-    if (callHistory[type].length > 50) { // Limit history to 50 entries
-        callHistory[type].pop();
-    }
-
-    saveCallHistory();
-    displayCallHistory();
+    callHistory[type].unshift(call);
+    updateCallLists();
 }
 
-function loadCallHistory() {
-    try {
-        const saved = localStorage.getItem('callHistory');
-        if (saved) {
-            const parsed = JSON.parse(saved);
-            Object.assign(callHistory, parsed);
-        }
-    } catch (error) {
-        console.error('Failed to load call history:', error);
-    }
-}
-
-function saveCallHistory() {
-    try {
-        localStorage.setItem('callHistory', JSON.stringify(callHistory));
-    } catch (error) {
-        console.error('Failed to save call history:', error);
-    }
-}
-
-function displayCallHistory() {
+function updateCallLists() {
     ['incoming', 'outgoing', 'missed'].forEach(type => {
         const container = document.querySelector(`#${type} .call-list`);
         container.innerHTML = '';
-
-        if (callHistory[type].length === 0) {
-            container.innerHTML = `<div class="no-calls">No ${type} calls</div>`;
-            return;
-        }
-
         callHistory[type].forEach(call => {
             const callElement = document.createElement('div');
             callElement.className = 'call-item';
-
-            const date = new Date(call.timestamp);
-            const formattedDate = date.toLocaleString();
-
             callElement.innerHTML = `
-                <div class="call-number">${call.number}</div>
-                <div class="call-time">${formattedDate}</div>
+                <span>${call.number}</span>
+                <span>${new Date(call.timestamp).toLocaleString()}</span>
             `;
-
             container.appendChild(callElement);
         });
     });
 }
 
-function showStatus(message, type = 'info') {
-    const statusMessage = document.getElementById('status-message');
-    statusMessage.textContent = message;
-    statusMessage.className = `status-message ${type}`;
+function requestPermissions() {
+    const permissions = cordova.plugins.permissions;
+    const requiredPermissions = [
+        permissions.READ_PHONE_STATE,
+        permissions.CALL_PHONE,
+        permissions.READ_CALL_LOG
+    ];
 
-    setTimeout(() => {
-        statusMessage.textContent = '';
-        statusMessage.className = 'status-message';
-    }, 3000);
+    permissions.requestPermissions(requiredPermissions, permissionSuccess, permissionError);
+}
+
+function permissionSuccess() {
+    console.log('Permissions granted');
+    // Fetch call logs here if needed
+}
+
+function permissionError() {
+    console.error('Permissions not granted');
+    alert('This app requires permissions to access call logs and make calls.');
 }
 
