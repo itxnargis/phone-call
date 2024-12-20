@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <widget id="com.example.phonecallapp" version="1.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
     <name>Phone Call App</name>
-    <description>A Cordova app that handles phone calls</description>
+    <description>A call management application</description>
     <author email="dev@example.com" href="http://example.com">
         Your Name
     </author>
@@ -13,13 +13,14 @@
         <config-file target="AndroidManifest.xml" parent="/manifest">
             <uses-permission android:name="android.permission.READ_PHONE_STATE" />
             <uses-permission android:name="android.permission.CALL_PHONE" />
-            <uses-permission android:name="android.permission.READ_CALL_LOG" />
             <uses-permission android:name="android.permission.PROCESS_OUTGOING_CALLS" />
         </config-file>
-    </platform>
 
-    <plugin name="cordova-plugin-android-permissions" spec="~1.1.2" />
-    <plugin name="cordova-phone-call-trap" spec="~0.1.0" />
-    <plugin name="cordova-plugin-phone-dialer" spec="~1.0.0" />
+        <config-file target="res/xml/config.xml" parent="/*">
+            <feature name="CallManager">
+                <param name="android-package" value="com.example.CallManager"/>
+            </feature>
+        </config-file>
+    </platform>
 </widget>
 
