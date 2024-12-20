@@ -1,46 +1,37 @@
+// Call history storage structure
+const callHistory = {
+    incoming: [],
+    outgoing: [],
+    missed: []
+};
+
 document.addEventListener('deviceready', onDeviceReady, false);
 
 function onDeviceReady() {
     console.log('Cordova is ready!');
-    requestPermissions();
+    loadCallHistory();
     setupTabs();
     setupDialer();
-    setupPhoneCallTrap();
-    fetchCallLogs();
-}
-
-function requestPermissions() {
-    const permissions = cordova.plugins.permissions;
-    const requiredPermissions = [
-        permissions.READ_CALL_LOG,
-        permissions.READ_PHONE_STATE,
-        permissions.CALL_PHONE,
-        permissions.PROCESS_OUTGOING_CALLS
-    ];
-
-    permissions.requestPermissions(requiredPermissions, permissionSuccess, permissionError);
-}
-
-function permissionSuccess() {
-    console.log('Permissions granted');
-    fetchCallLogs();
-}
-
-function permissionError() {
-    console.error('Permissions not granted');
-    alert('This app requires permissions to access call logs and make calls.');
+    displayCallHistory();
 }
 
 function setupTabs() {
     const tabs = document.querySelectorAll('.tab-button');
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
+            // Remove active class from all tabs
             tabs.forEach(t => t.classList.remove('active'));
+            // Add active class to clicked tab
             tab.classList.add('active');
+
+            // Hide all tab content
             document.querySelectorAll('.tab-content').forEach(content => {
                 content.classList.remove('active');
             });
-            document.getElementById(tab.dataset.tab).classList.add('active');
+
+            // Show selected tab content
+            const tabId = tab.dataset.tab;
+            document.getElementById(tabId).classList.add('active');
         });
     });
 }
@@ -49,6 +40,7 @@ function setupDialer() {
     const phoneNumberInput = document.getElementById('phone-number');
     const keypadButtons = document.querySelectorAll('.keypad-button');
     const callButton = document.getElementById('call-button');
+    const statusMessage = document.getElementById('status-message');
 
     keypadButtons.forEach(button => {
         button.addEventListener('click', () => {
@@ -59,87 +51,104 @@ function setupDialer() {
     callButton.addEventListener('click', () => {
         const number = phoneNumberInput.value.trim();
         if (number) {
-            makePhoneCall(number);
+            makeCall(number);
         } else {
-            alert('Please enter a valid phone number.');
+            showStatus('Please enter a valid phone number', 'error');
         }
     });
 }
 
-function makePhoneCall(number) {
-    window.plugins.CallNumber.callNumber(callSuccess, callError, number, true);
+function makeCall(number) {
+    try {
+        // Add to outgoing calls history
+        addCallToHistory('outgoing', number);
+
+        // Use tel: protocol for making calls
+        const telUrl = `tel:${number}`;
+        window.location.href = telUrl;
+
+        showStatus(`Calling ${number}...`);
+
+        // Clear input after call initiation
+        document.getElementById('phone-number').value = '';
+
+    } catch (error) {
+        console.error('Call failed:', error);
+        showStatus('Failed to make call. Please try again.', 'error');
+    }
 }
 
-function callSuccess(result) {
-    console.log('Call successful: ' + result);
+function addCallToHistory(type, number) {
+    const call = {
+        number: number,
+        timestamp: new Date().toISOString(),
+        duration: '00:00' // Placeholder as we can't track actual duration
+    };
+
+    callHistory[type].unshift(call); // Add to beginning of array
+    if (callHistory[type].length > 50) { // Limit history to 50 entries
+        callHistory[type].pop();
+    }
+
+    saveCallHistory();
+    displayCallHistory();
 }
 
-function callError(error) {
-    console.error('Call failed: ' + error);
-    alert('Failed to make the call. Please try again.');
-}
-
-function setupPhoneCallTrap() {
-    window.PhoneCallTrap.onCall((callState) => {
-        console.log('Phone call state:', callState);
-        let callType;
-        switch (callState.state) {
-            case 'RINGING':
-                callType = 'incoming';
-                break;
-            case 'OFFHOOK':
-                callType = 'outgoing';
-                break;
-            case 'IDLE':
-                // Check if it was a missed call
-                if (callState.prevState === 'RINGING') {
-                    callType = 'missed';
-                }
-                break;
+function loadCallHistory() {
+    try {
+        const saved = localStorage.getItem('callHistory');
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            Object.assign(callHistory, parsed);
         }
-        if (callType) {
-            updateCallList(callType, callState.phoneNumber);
+    } catch (error) {
+        console.error('Failed to load call history:', error);
+    }
+}
+
+function saveCallHistory() {
+    try {
+        localStorage.setItem('callHistory', JSON.stringify(callHistory));
+    } catch (error) {
+        console.error('Failed to save call history:', error);
+    }
+}
+
+function displayCallHistory() {
+    ['incoming', 'outgoing', 'missed'].forEach(type => {
+        const container = document.querySelector(`#${type} .call-list`);
+        container.innerHTML = '';
+
+        if (callHistory[type].length === 0) {
+            container.innerHTML = `<div class="no-calls">No ${type} calls</div>`;
+            return;
         }
+
+        callHistory[type].forEach(call => {
+            const callElement = document.createElement('div');
+            callElement.className = 'call-item';
+
+            const date = new Date(call.timestamp);
+            const formattedDate = date.toLocaleString();
+
+            callElement.innerHTML = `
+                <div class="call-number">${call.number}</div>
+                <div class="call-time">${formattedDate}</div>
+            `;
+
+            container.appendChild(callElement);
+        });
     });
 }
 
-function fetchCallLogs() {
-    window.plugins.calllog.list(callLogSuccess, callLogError);
-}
+function showStatus(message, type = 'info') {
+    const statusMessage = document.getElementById('status-message');
+    statusMessage.textContent = message;
+    statusMessage.className = `status-message ${type}`;
 
-function callLogSuccess(calls) {
-    calls.forEach(call => {
-        let callType;
-        switch (call.type) {
-            case 1: // Incoming
-                callType = 'incoming';
-                break;
-            case 2: // Outgoing
-                callType = 'outgoing';
-                break;
-            case 3: // Missed
-                callType = 'missed';
-                break;
-        }
-        if (callType) {
-            updateCallList(callType, call.number, new Date(call.date));
-        }
-    });
-}
-
-function callLogError(error) {
-    console.error('Error fetching call logs:', error);
-    alert('Failed to fetch call logs. Please check app permissions.');
-}
-
-function updateCallList(type, number, date = new Date()) {
-    const tabContent = document.getElementById(type);
-    const callItem = document.createElement('div');
-    callItem.className = 'call-item';
-    callItem.innerHTML = `
-        <span class="number">${number || 'Unknown'}</span>
-        <span class="date">${date.toLocaleString()}</span>
-    `;
-    tabContent.insertBefore(callItem, tabContent.firstChild);
+    setTimeout(() => {
+        statusMessage.textContent = '';
+        statusMessage.className = 'status-message';
+    }, 3000);
 }
 

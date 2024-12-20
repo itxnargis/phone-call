@@ -3,21 +3,30 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Phone Call App</title>
+    <title>Call Manager</title>
     <link rel="stylesheet" type="text/css" href="css/index.css">
 </head>
 <body>
     <div id="app">
         <div class="tabs">
-            <button class="tab-button active" data-tab="incoming">Incoming</button>
-            <button class="tab-button" data-tab="outgoing">Outgoing</button>
-            <button class="tab-button" data-tab="missed">Missed</button>
+            <button class="tab-button active" data-tab="incoming">Incoming Calls</button>
+            <button class="tab-button" data-tab="outgoing">Outgoing Calls</button>
+            <button class="tab-button" data-tab="missed">Missed Calls</button>
         </div>
-        <div id="incoming" class="tab-content active"></div>
-        <div id="outgoing" class="tab-content"></div>
-        <div id="missed" class="tab-content"></div>
+
+        <div id="incoming" class="tab-content active">
+            <div class="call-list"></div>
+        </div>
+        <div id="outgoing" class="tab-content">
+            <div class="call-list"></div>
+        </div>
+        <div id="missed" class="tab-content">
+            <div class="call-list"></div>
+        </div>
+
         <div id="custom-dialer">
-            <input type="tel" id="phone-number" placeholder="Enter phone number">
+            <h2>Phone Dialer</h2>
+            <input type="tel" id="phone-number" placeholder="Enter phone number" pattern="[0-9]*">
             <div id="keypad">
                 <button class="keypad-button">1</button>
                 <button class="keypad-button">2</button>
@@ -33,6 +42,7 @@
                 <button class="keypad-button">#</button>
             </div>
             <button id="call-button">Call</button>
+            <div id="status-message"></div>
         </div>
     </div>
     <script type="text/javascript" src="cordova.js"></script>

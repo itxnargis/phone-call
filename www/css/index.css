@@ -17,6 +17,7 @@ body {
 .tabs {
     display: flex;
     background-color: #007bff;
+    margin-bottom: 20px;
 }
 
 .tab-button {
@@ -37,68 +38,112 @@ body {
 .tab-content {
     display: none;
     padding: 20px;
-    max-height: 300px;
-    overflow-y: auto;
 }
 
 .tab-content.active {
     display: block;
 }
 
+.call-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
 .call-item {
+    padding: 10px;
+    border-bottom: 1px solid #eee;
     display: flex;
     justify-content: space-between;
-    padding: 10px;
-    border-bottom: 1px solid #e0e0e0;
+    align-items: center;
+}
+
+.call-number {
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.call-time {
+    font-size: 14px;
+    color: #666;
+}
+
+.no-calls {
+    text-align: center;
+    color: #666;
+    padding: 20px;
 }
 
 #custom-dialer {
     padding: 20px;
+    border-top: 1px solid #eee;
+}
+
+h2 {
+    text-align: center;
+    color: #333;
+    margin-bottom: 20px;
 }
 
 #phone-number {
     width: 100%;
-    padding: 10px;
-    font-size: 18px;
-    margin-bottom: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
+    padding: 15px;
+    font-size: 24px;
+    margin-bottom: 20px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    text-align: center;
+    letter-spacing: 2px;
 }
 
 #keypad {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 10px;
-    margin-bottom: 10px;
+    margin-bottom: 20px;
 }
 
 .keypad-button {
-    padding: 15px;
-    font-size: 18px;
-    background-color: #e0e0e0;
-    border: none;
-    border-radius: 5px;
+    padding: 20px;
+    font-size: 24px;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
     cursor: pointer;
-    transition: background-color 0.3s;
+    transition: all 0.2s;
 }
 
 .keypad-button:hover {
-    background-color: #d0d0d0;
+    background-color: #e9ecef;
+    transform: scale(0.98);
 }
 
 #call-button {
     width: 100%;
     padding: 15px;
-    font-size: 18px;
+    font-size: 20px;
     background-color: #28a745;
     color: #ffffff;
     border: none;
-    border-radius: 5px;
+    border-radius: 8px;
     cursor: pointer;
     transition: background-color 0.3s;
 }
 
 #call-button:hover {
     background-color: #218838;
+}
+
+.status-message {
+    margin-top: 15px;
+    text-align: center;
+    min-height: 20px;
+}
+
+.status-message.error {
+    color: #dc3545;
+}
+
+.status-message.info {
+    color: #0056b3;
 }
 
